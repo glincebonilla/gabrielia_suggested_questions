@@ -1,0 +1,2 @@
+class SuggestedQuestion:
+    question: str

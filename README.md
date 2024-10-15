@@ -1,2 +1,1 @@
-# gabrielia_suggested_questions
-Componente cognitivo que sugiere un conjunto de preguntas con base a una conversación de contexto.
+uvicorn infraestructure.entry_points.rest_api.main:app --host 0.0.0.0 --port 8003
