@@ -23,17 +23,28 @@ app.add_middleware(
  allow_headers=["*"],
 )
 
+
+     
+
 class SuggestedQuestionsRequest(BaseModel):
     """Request model for the suggested questions endpoint."""
     question_count: int
     conversation: List[str]
+    conversation_id: str
+    login: str
+    name: str
+    job: str
+    region: str
+    sale_point: str
+    entry_date: str
+    immediate_boss: str
     
 class SuggestedQuestionController:
     def __init__(self):
         self.suggested_questions_use_case = SuggestedQuestionsUseCase(LangchainSuggestedQuestionsAdapter())
 
-    def get_suggested_questions(self,conversation:list[str],question_count:int)->list[dict]:      
-            return  self.suggested_questions_use_case.get_suggested_questions(conversation, question_count)
+    def get_suggested_questions(self,context:object)->list[dict]:      
+            return  self.suggested_questions_use_case.get_suggested_questions(context)
     
 @app.get("/")
 async def read_root():
@@ -43,7 +54,7 @@ async def read_root():
 async def get_suggested_questions(request: SuggestedQuestionsRequest, suggestion_controller: SuggestedQuestionController = Depends()):
     """Get suggested questions based"""
     try:
-        return suggestion_controller.get_suggested_questions(request.conversation, request.question_count)
+        return suggestion_controller.get_suggested_questions(request)
     except ValueError as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -7,6 +7,11 @@ from langchain.chat_models import ChatOpenAI
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 from typing import List
+
+from langchain.callbacks.tracers.run_collector import RunCollectorCallbackHandler
+from langchain.schema.runnable import RunnableConfig
+from langchain.callbacks.tracers.langchain import wait_for_all_tracers
+
 from dotenv import load_dotenv, find_dotenv
 
 from external_services.general_parameters import GeneralParametersController
@@ -26,7 +31,7 @@ class LangchainSuggestedQuestionsAdapter(SuggestedQuestionsGateway):
         }
     
 
-    def get_suggested_questions(self, context: list[str], question_count: int) -> List[SuggestedQuestion]:
+    def get_suggested_questions(self, context:object) -> List[SuggestedQuestion]:
         parameters = self.get_parameters()
         # Inicializar el modelo con tu clave de API y especificar el modelo
         llm = ChatOpenAI(model=parameters.get("suggested_questions_model"))
@@ -35,15 +40,29 @@ class LangchainSuggestedQuestionsAdapter(SuggestedQuestionsGateway):
             template = parameters.get("suggested_questions_prompt")
         )
         dllm_chain = LLMChain(llm=llm, prompt=prompt_template)
-        text_context = " ".join(context)
-        respuesta = dllm_chain.run(text_context=text_context,question_count=question_count)
+        
+         # Configurar RunCollectorCallbackHandler
+        callback_handler = RunCollectorCallbackHandler()
+        config = RunnableConfig(
+            callbacks=[callback_handler],
+            tags=[context.login, context.name , context.job, context.region, context.sale_point, context.entry_date, context.immediate_boss],
+            metadata={"session_id": context.conversation_id}
+        )
+
+        text_context = " ".join(context.conversation)
+        respuesta = dllm_chain.invoke(input={"text_context": text_context, "question_count": context.question_count}, config=config)
                                    
         # Usar una expresión regular para extraer la parte de la respuesta entre corchetes
-        match = re.search(r'\[.*?\]', respuesta, re.DOTALL)
+        match = re.search(r'\[.*?\]', respuesta["text"], re.DOTALL)
         if match:
             json_str = match.group(0)
             # Parsear la respuesta JSON para obtener la lista de preguntas
             preguntas = json.loads(json_str)
+
+            run = callback_handler.traced_runs[0]
+            callback_handler.traced_runs = []
+            wait_for_all_tracers()
+
             return preguntas
         else:
             print("No se encontró una lista JSON en la respuesta.")
